@@ -1,0 +1,6 @@
+{
+  "name": "ProbMaster: Distribuições & Gamificação",
+  "description": "Aplicativo mobile-first para cálculo de probabilidades, visualização interativa de distribuições estatísticas, laboratório de convergência e desafios gamificados com relatórios acadêmicos.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
