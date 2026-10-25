@@ -406,10 +406,16 @@ export const DISTRIBUTIONS: Record<string, DistributionInfo> = {
     invCdf: (prob, p) => {
       return p.mu + p.sigma * standardNormalInv(prob);
     },
-    getRange: (p) => ({
-      min: p.mu - 4.2 * p.sigma,
-      max: p.mu + 4.2 * p.sigma,
-    }),
+    getRange: (p) => {
+      const mu = p.mu ?? 0;
+      const sigma = Math.max(0.01, p.sigma ?? 1);
+      // Stable reference frame so changing sigma/variance visibly widens and flattens the curve
+      const halfSpan = Math.max(4.8, 2.8 * sigma);
+      return {
+        min: Number((mu - halfSpan).toFixed(2)),
+        max: Number((mu + halfSpan).toFixed(2)),
+      };
+    },
     realWorldContext:
       'Exemplo real: Altura da população brasileira, peso de pacotes de alimentos em controle de qualidade, notas de exames padronizados (ENEM).',
   },

@@ -33,10 +33,10 @@ export const DistributionChart: React.FC<DistributionChartProps> = ({
   const [activeDrag, setActiveDrag] = useState<'x1' | 'x2' | null>(null);
   const [hoverCoord, setHoverCoord] = useState<{ x: number; y: number; xVal: number; yVal: number } | null>(null);
 
-  // SVG internal coordinate dimensions
+  // SVG internal coordinate dimensions with generous padding for mobile touch
   const width = 640;
-  const height = 300;
-  const padding = { top: 28, right: 30, bottom: 44, left: 52 };
+  const height = 330;
+  const padding = { top: 32, right: 32, bottom: 58, left: 52 };
   const plotWidth = width - padding.left - padding.right;
   const plotHeight = height - padding.top - padding.bottom;
 
@@ -57,7 +57,7 @@ export const DistributionChart: React.FC<DistributionChartProps> = ({
   };
 
   // Sample points for the curve or bars
-  const numSamples = dist.type === 'discrete' ? Math.min(100, Math.ceil(xSpan) + 1) : 200;
+  const numSamples = dist.type === 'discrete' ? Math.min(100, Math.ceil(xSpan) + 1) : 220;
   const points: { x: number; y: number; isInTail: boolean }[] = [];
 
   let maxY = 0.0001;
@@ -83,8 +83,25 @@ export const DistributionChart: React.FC<DistributionChartProps> = ({
     }
   }
 
-  // Add 15% top margin for aesthetics and label room
-  maxY = showCDF ? 1.05 : maxY * 1.18;
+  // Anchor maxY for Normal and Student's t distributions so changing variance visibly flattens or steepens the curve
+  // giving students an intuitive visual grasp of variance and kurtosis (achatamento vs afunilamento)
+  if (showCDF) {
+    maxY = 1.05;
+  } else {
+    if (dist.id === 'normal') {
+      const currentPeak = dist.pdf(params.mu ?? 0, params);
+      // For standard normal (sigma = 1), peak is ~0.3989. With ceiling 0.46, peak is at ~87% height.
+      // When sigma = 2, peak is ~0.20 -> ~43% height (visibly flattened/platicúrtica!).
+      // When sigma = 3, peak is ~0.13 -> ~28% height (very flat!).
+      // When sigma < 0.8, peak scales up so high peaks (leptocúrtica) remain visible without clipping.
+      maxY = Math.max(0.46, currentPeak * 1.15);
+    } else if (dist.id === 't') {
+      const currentPeak = dist.pdf(0, params);
+      maxY = Math.max(0.46, currentPeak * 1.15);
+    } else {
+      maxY = maxY * 1.18;
+    }
+  }
 
   const toSvgY = (yVal: number) => {
     return padding.top + plotHeight - (Math.max(0, yVal) / maxY) * plotHeight;
@@ -161,11 +178,57 @@ export const DistributionChart: React.FC<DistributionChartProps> = ({
     }
   }
 
-  // Handle Dragging
+  // Handle Dragging with generous hit areas & canvas touch-to-drag
   const handlePointerDown = (bound: 'x1' | 'x2', e: React.PointerEvent) => {
     e.stopPropagation();
     setActiveDrag(bound);
-    (e.target as Element).setPointerCapture(e.pointerId);
+    try {
+      (e.target as Element).setPointerCapture(e.pointerId);
+    } catch {
+      // Safe fallback
+    }
+  };
+
+  const handleSvgPointerDown = (e: React.PointerEvent) => {
+    if (!svgRef.current) return;
+    const rect = svgRef.current.getBoundingClientRect();
+    const scaleX = width / rect.width;
+    const svgPointerX = (e.clientX - rect.left) * scaleX;
+    
+    // Only engage if clicking inside or near plot horizontally
+    if (svgPointerX < padding.left - 15 || svgPointerX > padding.left + plotWidth + 15) return;
+    const val = fromSvgX(svgPointerX);
+
+    // Determine whether x1 or x2 is closer in dual bound modes
+    let chosen: 'x1' | 'x2' = 'x1';
+    if (mode === 'between' || mode === 'two_tail') {
+      const dist1 = Math.abs(val - x1);
+      const dist2 = Math.abs(val - x2);
+      chosen = dist1 <= dist2 ? 'x1' : 'x2';
+    }
+
+    setActiveDrag(chosen);
+    try {
+      (e.currentTarget as Element).setPointerCapture(e.pointerId);
+    } catch {
+      // Safe fallback
+    }
+
+    if (dist.type === 'discrete') {
+      const rounded = Math.round(val);
+      if (chosen === 'x1') {
+        onBoundsChange(rounded, x2);
+      } else {
+        onBoundsChange(x1, rounded);
+      }
+    } else {
+      const snapped = Math.round(val * 100) / 100;
+      if (chosen === 'x1') {
+        onBoundsChange(snapped, x2);
+      } else {
+        onBoundsChange(x1, snapped);
+      }
+    }
   };
 
   const handlePointerMove = (e: React.PointerEvent) => {
@@ -208,6 +271,13 @@ export const DistributionChart: React.FC<DistributionChartProps> = ({
     if (activeDrag) {
       try {
         (e.target as Element).releasePointerCapture(e.pointerId);
+      } catch {
+        // Safe catch
+      }
+      try {
+        if (svgRef.current) {
+          svgRef.current.releasePointerCapture(e.pointerId);
+        }
       } catch {
         // Safe catch
       }
@@ -274,11 +344,12 @@ export const DistributionChart: React.FC<DistributionChartProps> = ({
         </div>
       </div>
 
-      {/* SVG Canvas */}
+      {/* SVG Canvas with touch-action none for fluid mobile dragging */}
       <svg
         ref={svgRef}
         viewBox={`0 0 ${width} ${height}`}
-        className="w-full h-auto cursor-crosshair touch-none"
+        className="w-full h-auto cursor-crosshair touch-none select-none"
+        onPointerDown={handleSvgPointerDown}
         onPointerMove={handlePointerMove}
         onPointerLeave={() => {
           setHoverCoord(null);
@@ -325,7 +396,7 @@ export const DistributionChart: React.FC<DistributionChartProps> = ({
           x2={padding.left + plotWidth}
           y2={toSvgY(0)}
           stroke={colors.axisStroke}
-          strokeWidth="1.5"
+          strokeWidth="2"
         />
 
         {/* Shaded Tail Area (Continuous) */}
@@ -406,126 +477,236 @@ export const DistributionChart: React.FC<DistributionChartProps> = ({
             />
             <text
               x={meanX}
-              y={padding.top - 6}
+              y={padding.top - 8}
               fontFamily="'JetBrains Mono', monospace"
-              fontSize="11"
+              fontSize="12"
               fill={colors.meanColor}
               textAnchor="middle"
-              fontWeight="700"
+              fontWeight="800"
             >
               μ={typeof moments.mean === 'number' ? moments.mean.toFixed(2) : moments.mean}
             </text>
           </g>
         )}
 
-        {/* Cutoff Vertical Line 1 (x1) in UFJF Blue */}
+        {/* Cutoff Vertical Line 1 (x1) in UFJF Blue with large touch targets */}
         {x1 >= xMin && x1 <= xMax && (
           <g className="cursor-ew-resize">
+            {/* Invisible broad touch target stem (48px wide) */}
+            <line
+              x1={toSvgX(x1)}
+              y1={padding.top}
+              x2={toSvgX(x1)}
+              y2={toSvgY(0) + 45}
+              stroke="transparent"
+              strokeWidth="48"
+              style={{ touchAction: 'none' }}
+              onPointerDown={(e) => handlePointerDown('x1', e)}
+            />
+            {/* Visible vertical stem */}
             <line
               x1={toSvgX(x1)}
               y1={padding.top}
               x2={toSvgX(x1)}
               y2={toSvgY(0)}
               stroke={colors.bound1Color}
-              strokeWidth="2.5"
+              strokeWidth={activeDrag === 'x1' ? '3.5' : '2.5'}
+            />
+            {/* Active Halo ring when dragging */}
+            {activeDrag === 'x1' && (
+              <circle
+                cx={toSvgX(x1)}
+                cy={toSvgY(0) + 14}
+                r="22"
+                fill={colors.bound1Color}
+                fillOpacity="0.25"
+                stroke={colors.bound1Color}
+                strokeWidth="2"
+                strokeDasharray="3 2"
+              />
+            )}
+            {/* Visible draggable handle circle (r=13) */}
+            <circle
+              cx={toSvgX(x1)}
+              cy={toSvgY(0) + 14}
+              r="13"
+              fill={colors.bound1Color}
+              stroke="#ffffff"
+              strokeWidth="3"
+              filter="url(#handleShadow)"
+              className="transition-transform hover:scale-110 active:scale-125"
             />
             <circle
               cx={toSvgX(x1)}
-              cy={toSvgY(0) + 12}
-              r="9"
+              cy={toSvgY(0) + 14}
+              r="4.5"
+              fill="#ffffff"
+            />
+            {/* Value pill badge */}
+            <rect
+              x={toSvgX(x1) - 24}
+              y={toSvgY(0) + 31}
+              width="48"
+              height="20"
+              rx="6"
               fill={colors.bound1Color}
-              stroke="#ffffff"
-              strokeWidth="2.5"
               filter="url(#handleShadow)"
-              onPointerDown={(e) => handlePointerDown('x1', e)}
-              className="hover:scale-125 transition-transform"
             />
             <text
               x={toSvgX(x1)}
-              y={toSvgY(0) + 32}
+              y={toSvgY(0) + 45}
               fontFamily="'JetBrains Mono', monospace"
               fontSize="11"
-              fill={colors.bound1Color}
+              fill="#ffffff"
               fontWeight="800"
               textAnchor="middle"
             >
               {Number.isInteger(x1) ? x1 : x1.toFixed(2)}
             </text>
+            {/* Broad touch target circle (r=32) */}
+            <circle
+              cx={toSvgX(x1)}
+              cy={toSvgY(0) + 20}
+              r="32"
+              fill="transparent"
+              style={{ touchAction: 'none' }}
+              onPointerDown={(e) => handlePointerDown('x1', e)}
+            />
           </g>
         )}
 
-        {/* Cutoff Vertical Line 2 (x2) in UFJF Red */}
+        {/* Cutoff Vertical Line 2 (x2) in UFJF Red with large touch targets */}
         {(mode === 'between' || mode === 'two_tail') && x2 >= xMin && x2 <= xMax && (
           <g className="cursor-ew-resize">
+            {/* Invisible broad touch target stem (48px wide) */}
+            <line
+              x1={toSvgX(x2)}
+              y1={padding.top}
+              x2={toSvgX(x2)}
+              y2={toSvgY(0) + 45}
+              stroke="transparent"
+              strokeWidth="48"
+              style={{ touchAction: 'none' }}
+              onPointerDown={(e) => handlePointerDown('x2', e)}
+            />
+            {/* Visible vertical stem */}
             <line
               x1={toSvgX(x2)}
               y1={padding.top}
               x2={toSvgX(x2)}
               y2={toSvgY(0)}
               stroke={colors.bound2Color}
-              strokeWidth="2.5"
+              strokeWidth={activeDrag === 'x2' ? '3.5' : '2.5'}
+            />
+            {/* Active Halo ring when dragging */}
+            {activeDrag === 'x2' && (
+              <circle
+                cx={toSvgX(x2)}
+                cy={toSvgY(0) + 14}
+                r="22"
+                fill={colors.bound2Color}
+                fillOpacity="0.25"
+                stroke={colors.bound2Color}
+                strokeWidth="2"
+                strokeDasharray="3 2"
+              />
+            )}
+            {/* Visible draggable handle circle (r=13) */}
+            <circle
+              cx={toSvgX(x2)}
+              cy={toSvgY(0) + 14}
+              r="13"
+              fill={colors.bound2Color}
+              stroke="#ffffff"
+              strokeWidth="3"
+              filter="url(#handleShadow)"
+              className="transition-transform hover:scale-110 active:scale-125"
             />
             <circle
               cx={toSvgX(x2)}
-              cy={toSvgY(0) + 12}
-              r="9"
+              cy={toSvgY(0) + 14}
+              r="4.5"
+              fill="#ffffff"
+            />
+            {/* Value pill badge */}
+            <rect
+              x={toSvgX(x2) - 24}
+              y={toSvgY(0) + 31}
+              width="48"
+              height="20"
+              rx="6"
               fill={colors.bound2Color}
-              stroke="#ffffff"
-              strokeWidth="2.5"
               filter="url(#handleShadow)"
-              onPointerDown={(e) => handlePointerDown('x2', e)}
-              className="hover:scale-125 transition-transform"
             />
             <text
               x={toSvgX(x2)}
-              y={toSvgY(0) + 32}
+              y={toSvgY(0) + 45}
               fontFamily="'JetBrains Mono', monospace"
               fontSize="11"
-              fill={colors.bound2Color}
+              fill="#ffffff"
               fontWeight="800"
               textAnchor="middle"
             >
               {Number.isInteger(x2) ? x2 : x2.toFixed(2)}
             </text>
+            {/* Broad touch target circle (r=32) */}
+            <circle
+              cx={toSvgX(x2)}
+              cy={toSvgY(0) + 20}
+              r="32"
+              fill="transparent"
+              style={{ touchAction: 'none' }}
+              onPointerDown={(e) => handlePointerDown('x2', e)}
+            />
           </g>
         )}
 
-        {/* X Axis Labels */}
+        {/* X Axis Ticks and Enhanced Labels for Mobile Readability */}
         {xTicks.map((t, idx) => (
-          <text
-            key={idx}
-            x={t.svgX}
-            y={height - 6}
-            fontFamily="'JetBrains Mono', monospace"
-            fontSize="10"
-            fill={colors.tickColor}
-            textAnchor="middle"
-          >
-            {t.val}
-          </text>
+          <g key={idx}>
+            <line
+              x1={t.svgX}
+              y1={toSvgY(0)}
+              x2={t.svgX}
+              y2={toSvgY(0) + 6}
+              stroke={colors.axisStroke}
+              strokeWidth="1.5"
+            />
+            <text
+              x={t.svgX}
+              y={height - 8}
+              fontFamily="'JetBrains Mono', monospace"
+              fontSize="13"
+              fontWeight="700"
+              fill={colors.tickColor}
+              textAnchor="middle"
+            >
+              {t.val}
+            </text>
+          </g>
         ))}
 
         {/* Hover Inspector Crosshair / Tooltip */}
         {hoverCoord && (
           <g>
-            <circle cx={hoverCoord.x} cy={hoverCoord.y} r="4.5" fill={colors.bound1Color} />
+            <circle cx={hoverCoord.x} cy={hoverCoord.y} r="5" fill={colors.bound1Color} />
             <rect
-              x={Math.min(width - 110, Math.max(10, hoverCoord.x - 50))}
-              y={Math.max(10, hoverCoord.y - 32)}
-              width="100"
-              height="22"
+              x={Math.min(width - 120, Math.max(10, hoverCoord.x - 55))}
+              y={Math.max(10, hoverCoord.y - 34)}
+              width="110"
+              height="24"
               rx="6"
               fill={colors.tooltipBg}
               stroke={colors.tooltipBorder}
               strokeWidth="1.5"
             />
             <text
-              x={Math.min(width - 60, Math.max(60, hoverCoord.x))}
-              y={Math.max(25, hoverCoord.y - 17)}
+              x={Math.min(width - 65, Math.max(65, hoverCoord.x))}
+              y={Math.max(26, hoverCoord.y - 18)}
               fontFamily="'JetBrains Mono', monospace"
-              fontSize="10"
+              fontSize="11"
               fill={colors.tooltipText}
-              fontWeight="600"
+              fontWeight="700"
               textAnchor="middle"
             >
               x:{hoverCoord.xVal.toFixed(2)} y:{hoverCoord.yVal.toFixed(4)}

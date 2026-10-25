@@ -950,21 +950,36 @@ export default function App() {
                     Parâmetros da Distribuição & Limites
                   </h4>
 
-                  {/* Distribution Parameters Sliders */}
+                  {/* Distribution Parameters Sliders & Direct Numeric Inputs */}
                   <div className="space-y-3">
                     {currentDist.parameters.map((p) => {
                       const val = paramValues[p.id] ?? p.defaultValue;
                       return (
                         <div key={p.id} className="space-y-1">
                           <div className="flex justify-between items-center text-xs">
-                            <span className="font-bold text-slate-900 dark:text-slate-100">
+                            <label htmlFor={`param-${p.id}`} className="font-bold text-slate-900 dark:text-slate-100">
                               {p.name}:
-                            </span>
-                            <span className={`font-mono font-bold px-2 py-0.5 rounded border ${
-                              isDark ? 'bg-[#071326] border-slate-700 text-sky-400' : 'bg-slate-100 border-slate-300 text-[#003882]'
-                            }`}>
-                              {val}
-                            </span>
+                            </label>
+                            <input
+                              id={`param-${p.id}`}
+                              type="number"
+                              min={p.min}
+                              max={p.max}
+                              step={p.step}
+                              value={val}
+                              onChange={(e) => {
+                                const parsed = parseFloat(e.target.value);
+                                if (!isNaN(parsed)) {
+                                  handleParamChange(p.id, parsed);
+                                }
+                              }}
+                              aria-label={p.name}
+                              className={`w-28 text-right font-mono font-bold px-2 py-0.5 text-xs rounded-lg border transition-all outline-none ${
+                                isDark
+                                  ? 'bg-[#071326] border-slate-700 text-sky-400 focus:border-sky-400 focus:ring-1 focus:ring-sky-400'
+                                  : 'bg-slate-50 border-slate-300 text-[#003882] focus:border-[#003882] focus:ring-1 focus:ring-[#003882]'
+                              }`}
+                            />
                           </div>
                           <input
                             type="range"
@@ -1088,7 +1103,7 @@ export default function App() {
                   <h4 className="text-xs font-bold uppercase tracking-wider text-[#003882] dark:text-sky-400">
                     Propriedades Teóricas & Momentos (E[X], Var, σ)
                   </h4>
-                  <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
                     <div className={`p-2.5 rounded-xl border ${
                       isDark ? 'bg-[#071326] border-slate-800' : 'bg-slate-50 border-slate-200'
                     }`}>
@@ -1119,6 +1134,25 @@ export default function App() {
                       <div className="text-slate-700 dark:text-slate-400 text-[10px] uppercase font-bold">Assimetria (Skewness)</div>
                       <div className="font-mono text-sm font-bold text-amber-700 dark:text-amber-400 mt-0.5">
                         {formatMoment(moments.skewness)}
+                      </div>
+                    </div>
+                    <div className={`p-2.5 rounded-xl border col-span-2 sm:col-span-2 ${
+                      isDark ? 'bg-[#071326] border-slate-800' : 'bg-slate-50 border-slate-200'
+                    }`}>
+                      <div className="flex justify-between items-center">
+                        <span className="text-slate-700 dark:text-slate-400 text-[10px] uppercase font-bold">Curtose Excesso (Achatamento)</span>
+                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-sky-100 text-[#003882] dark:bg-sky-950 dark:text-sky-300">
+                          {typeof moments.kurtosis === 'number'
+                            ? Math.abs(moments.kurtosis) < 0.05
+                              ? 'Mesocúrtica (Padrão)'
+                              : moments.kurtosis > 0
+                              ? 'Leptocúrtica (Afunilada)'
+                              : 'Platicúrtica (Achatada)'
+                            : 'Teórica'}
+                        </span>
+                      </div>
+                      <div className="font-mono text-sm font-bold text-indigo-700 dark:text-indigo-400 mt-0.5">
+                        {formatMoment(moments.kurtosis)}
                       </div>
                     </div>
                   </div>
