@@ -462,7 +462,7 @@ export const QuestsView: React.FC<QuestsViewProps> = ({
                 <div className="flex items-center justify-between flex-wrap gap-2">
                   <div className="flex items-center gap-1.5 text-xs font-bold text-[#003882] dark:text-sky-300">
                     <Calculator className="w-4 h-4 text-[#003882] dark:text-sky-400" />
-                    <span>Bancada de Cálculo da Questão (ProbMaster)</span>
+                    <span>Bancada de Cálculo da Questão (ProbMaster PI)</span>
                   </div>
 
                   {onOpenInCalculator && (
@@ -696,7 +696,7 @@ export const QuestsView: React.FC<QuestsViewProps> = ({
                 >
                   <div className="space-y-0.5">
                     <div className="text-[10px] uppercase font-bold tracking-wider text-amber-700 dark:text-amber-400">
-                      Resultado Calculado pelo ProbMaster:
+                      Resultado Calculado pelo ProbMaster PI:
                     </div>
                     <div className="font-mono text-sm font-black">
                       {calcResult.expressionText} ={' '}

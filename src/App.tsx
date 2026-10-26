@@ -53,6 +53,7 @@ import {
   X,
   LogOut,
   PenSquare,
+  Github,
 } from 'lucide-react';
 
 type MainTab = 'calculator' | 'lab' | 'quests' | 'dashboard';
@@ -300,25 +301,42 @@ export default function App() {
         }`}
       >
         <div className="max-w-6xl mx-auto flex items-center justify-between gap-6">
-          {/* Zone 1: Brand Wordmark with Official UFJF Coat of Arms */}
+          {/* Zone 1: Brand Wordmark with ProbMaster PI Icon & Author GitHub */}
           <div className="flex items-center gap-3 shrink-0">
             <img
-              src="/public/assets/aistudio/image_76466eb6.png"
-              alt="Brasão da UFJF"
-              className="w-8 h-10 object-contain shrink-0 drop-shadow-xs"
+              src="/probmaster-pi_logo.png"
+              onError={(e) => {
+                (e.currentTarget as HTMLImageElement).src =
+                  'https://kbmrgwqdroxtbtnvtdrs.supabase.co/storage/v1/object/public/figs/probmaster-pi_logo.png';
+              }}
+              alt="ProbMaster PI"
+              className="w-10 h-10 rounded-xl object-contain shrink-0 shadow-xs transition-transform hover:scale-105"
             />
             <div className="flex flex-col">
               <div className="flex items-baseline gap-1.5">
                 <span className="text-base font-black tracking-tight text-[#003882] dark:text-sky-400 whitespace-nowrap">
-                  ProbMaster
+                  ProbMaster PI
                 </span>
                 <span className="text-xs font-bold text-[#c4161c] uppercase tracking-wider">
                   · UFJF/GV
                 </span>
               </div>
-              <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium hidden sm:inline">
-                Prof. Márcio Souza · DCBV / ICV
-              </span>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <a
+                  href="https://github.com/profmsouzaoficial"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white transition-colors group"
+                  title="GitHub: @profmsouzaoficial"
+                >
+                  <Github className="w-3.5 h-3.5 text-slate-700 dark:text-slate-300 group-hover:scale-110 transition-transform" />
+                  <span className="group-hover:underline underline-offset-2">@profmsouzaoficial</span>
+                </a>
+                <span className="text-slate-400 dark:text-slate-600 text-[10px] hidden sm:inline">·</span>
+                <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium hidden sm:inline">
+                  Prof. Márcio Souza · DCBV / ICV
+                </span>
+              </div>
             </div>
           </div>
 
@@ -616,12 +634,21 @@ export default function App() {
                   </div>
 
                   {/* UFJF Department & Author Footer */}
-                  <div className="pt-2.5 mt-2 border-t border-slate-200 dark:border-slate-800 text-center space-y-0.5">
+                  <div className="pt-2.5 mt-2 border-t border-slate-200 dark:border-slate-800 text-center space-y-1">
                     <div className="text-[11px] font-bold text-[#003882] dark:text-sky-300">
-                      Prof. Márcio Souza — DCBV — UFJF/GV
+                      ProbMaster PI — Prof. Márcio Souza
                     </div>
+                    <a
+                      href="https://github.com/profmsouzaoficial"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center justify-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white transition-colors"
+                    >
+                      <Github className="w-3.5 h-3.5" />
+                      <span>@profmsouzaoficial</span>
+                    </a>
                     <div className="text-[10px] text-slate-500 dark:text-slate-400">
-                      Instituto de Ciências da Vida (ICV) · Campus Governador Valadares
+                      DCBV · Instituto de Ciências da Vida (ICV) · UFJF/GV
                     </div>
                   </div>
                 </div>
@@ -1255,11 +1282,21 @@ export default function App() {
 
       {/* Institutional Academic Footer with Author Credit */}
       <footer className="mt-auto py-5 border-t border-slate-200 dark:border-[#183664] text-center text-xs text-slate-500 dark:text-slate-400">
-        <div className="max-w-6xl mx-auto px-4 space-y-1">
-          <div className="font-semibold text-slate-700 dark:text-slate-200 flex items-center justify-center gap-1.5 flex-wrap">
-            <span>ProbMaster UFJF</span>
+        <div className="max-w-6xl mx-auto px-4 space-y-1.5">
+          <div className="font-semibold text-slate-700 dark:text-slate-200 flex items-center justify-center gap-2 flex-wrap">
+            <span>ProbMaster PI</span>
             <span>·</span>
-            <span>Autoria: <strong className="text-[#003882] dark:text-sky-400">Prof. Márcio Souza</strong> — DCBV — UFJF/GV</span>
+            <span>Autoria: <strong className="text-[#003882] dark:text-sky-400">Prof. Márcio Souza</strong> — DCBV — ICV — UFJF/GV</span>
+            <span>·</span>
+            <a
+              href="https://github.com/profmsouzaoficial"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-slate-700 dark:text-slate-200 hover:text-[#003882] dark:hover:text-sky-400 font-bold transition-colors underline decoration-slate-400 underline-offset-2"
+            >
+              <Github className="w-3.5 h-3.5" />
+              @profmsouzaoficial
+            </a>
           </div>
           <div className="text-[11px] text-slate-400 dark:text-slate-500">
             Departamento de Ciências Básicas da Vida · Instituto de Ciências da Vida (ICV) · Universidade Federal de Juiz de Fora / Campus Governador Valadares

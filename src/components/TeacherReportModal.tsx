@@ -67,7 +67,7 @@ Taxa de Precisão nos Desafios: ${profile.accuracyRate.toFixed(2)}%
 Total de Cálculos Práticos Realizados: ${profile.totalCalculationsDone}
 Desafios Resolvidos: ${profile.challengesSolvedCount}
 Data do Relatório: ${new Date().toLocaleDateString('pt-BR')}
-Gerado via ProbMaster UFJF.`;
+Gerado via ProbMaster PI UFJF (@profmsouzaoficial).`;
 
     navigator.clipboard.writeText(summary);
     setCopied(true);
@@ -323,7 +323,7 @@ Gerado via ProbMaster UFJF.`;
                 Assinatura do Professor(a) / Orientador(a) UFJF
               </div>
               <div className="text-[10px] text-slate-500">
-                ProbMaster · Autoria: Prof. Márcio Souza — DCBV — ICV — UFJF/GV
+                ProbMaster PI · Autoria: Prof. Márcio Souza (@profmsouzaoficial) — DCBV — ICV — UFJF/GV
               </div>
             </div>
           </div>

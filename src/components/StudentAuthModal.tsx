@@ -30,6 +30,7 @@ import {
   Calendar,
   Building2,
   Trash2,
+  Github,
 } from 'lucide-react';
 import { StudentProfile } from '../gamification/types';
 import { RegisterStudentParams, isInstitutionalUfjfEmail } from '../lib/supabase';
@@ -422,11 +423,15 @@ export const StudentAuthModal: React.FC<StudentAuthModalProps> = ({
             <X className="w-5 h-5" />
           </button>
           <div className="flex items-center gap-3">
-            <div className="w-11 h-13 bg-white rounded-xl p-1 flex items-center justify-center shadow-md shrink-0">
+            <div className="w-12 h-12 bg-white rounded-xl p-1 flex items-center justify-center shadow-md shrink-0">
               <img
-                src="/public/assets/aistudio/image_76466eb6.png"
-                alt="Brasão UFJF"
-                className="w-full h-full object-contain"
+                src="/probmaster-pi_logo.png"
+                onError={(e) => {
+                  (e.currentTarget as HTMLImageElement).src =
+                    'https://kbmrgwqdroxtbtnvtdrs.supabase.co/storage/v1/object/public/figs/probmaster-pi_logo.png';
+                }}
+                alt="ProbMaster PI"
+                className="w-full h-full object-contain rounded-lg"
               />
             </div>
             <div>
@@ -435,11 +440,21 @@ export const StudentAuthModal: React.FC<StudentAuthModalProps> = ({
                   ? tab === 'edit-profile'
                     ? 'Editar Informações do Aluno'
                     : 'Identificação & Informações do Aluno'
-                  : 'Acesso Acadêmico UFJF/GV'}
+                  : 'ProbMaster PI · Acesso Acadêmico'}
               </h2>
-              <p className="text-xs text-blue-200">
-                ProbMaster · Autoria: Prof. Márcio Souza — DCBV — ICV — UFJF/GV
-              </p>
+              <div className="text-xs text-blue-200 flex items-center gap-1.5 flex-wrap">
+                <span>Autoria: Prof. Márcio Souza (DCBV/ICV - UFJF/GV)</span>
+                <span>·</span>
+                <a
+                  href="https://github.com/profmsouzaoficial"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 font-bold text-white hover:text-amber-300 underline underline-offset-2 transition-colors"
+                >
+                  <Github className="w-3 h-3" />
+                  @profmsouzaoficial
+                </a>
+              </div>
             </div>
           </div>
         </div>
