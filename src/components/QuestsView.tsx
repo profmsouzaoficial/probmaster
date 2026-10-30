@@ -3,7 +3,7 @@
  * Interactive solving arena with embedded ProbMaster calculation workbench for every question.
  */
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { StudentChallenge } from '../gamification/types';
 import { MathText } from './MathView';
 import {
@@ -22,6 +22,11 @@ import {
   Calculator,
   ArrowUpRight,
   CheckCheck,
+  Filter,
+  Layers,
+  RotateCcw,
+  Activity,
+  Hash,
 } from 'lucide-react';
 
 interface QuestsViewProps {
@@ -111,6 +116,10 @@ export const QuestsView: React.FC<QuestsViewProps> = ({
   theme = 'light',
 }) => {
   const isDark = theme === 'dark';
+  const [filterDistType, setFilterDistType] = useState<
+    'all' | 'continuous' | 'discrete'
+  >('all');
+  const [filterDistId, setFilterDistId] = useState<string>('all');
   const [filterDifficulty, setFilterDifficulty] = useState<string>('all');
   const [userAnswers, setUserAnswers] = useState<Record<string, string>>({});
   const [revealedHints, setRevealedHints] = useState<
@@ -132,10 +141,111 @@ export const QuestsView: React.FC<QuestsViewProps> = ({
   // Local calculation workbench states per challenge
   const [helpers, setHelpers] = useState<Record<string, HelperState>>({});
 
-  const filtered = challenges.filter((c) => {
-    if (filterDifficulty === 'all') return true;
-    return c.difficulty.toLowerCase() === filterDifficulty.toLowerCase();
-  });
+  // Helper to determine if a challenge is discrete or continuous
+  const getChallengeDistType = (
+    c: StudentChallenge
+  ): 'continuous' | 'discrete' => {
+    const distInfo = DISTRIBUTIONS[c.distId];
+    if (distInfo?.type) return distInfo.type;
+    const isDiscrete = [
+      'binomial',
+      'poisson',
+      'geometric',
+      'hypergeometric',
+    ].includes((c.distId || '').toLowerCase());
+    return isDiscrete ? 'discrete' : 'continuous';
+  };
+
+  // Group challenges by distribution and compute counts
+  const distOptions = useMemo(() => {
+    let continuousTotal = 0;
+    let discreteTotal = 0;
+    const map: Record<
+      string,
+      {
+        id: string;
+        name: string;
+        type: 'continuous' | 'discrete';
+        count: number;
+      }
+    > = {};
+
+    challenges.forEach((c) => {
+      const type = getChallengeDistType(c);
+      if (type === 'continuous') continuousTotal++;
+      else discreteTotal++;
+
+      const distInfo = DISTRIBUTIONS[c.distId];
+      const name = c.distName || distInfo?.name || c.distId;
+
+      if (!map[c.distId]) {
+        map[c.distId] = {
+          id: c.distId,
+          name,
+          type,
+          count: 0,
+        };
+      }
+      map[c.distId].count++;
+    });
+
+    const list = Object.values(map).sort((a, b) => b.count - a.count);
+
+    return {
+      total: challenges.length,
+      continuousTotal,
+      discreteTotal,
+      list,
+    };
+  }, [challenges]);
+
+  // Distributions to display in the chips (filtered by broad type if selected)
+  const visibleDistChips = useMemo(() => {
+    if (filterDistType === 'all') return distOptions.list;
+    return distOptions.list.filter((d) => d.type === filterDistType);
+  }, [distOptions.list, filterDistType]);
+
+  // Challenges matching the current distribution filter (type & specific)
+  const challengesMatchingDist = useMemo(() => {
+    return challenges.filter((c) => {
+      const type = getChallengeDistType(c);
+      if (filterDistType !== 'all' && type !== filterDistType) return false;
+      if (filterDistId !== 'all' && c.distId !== filterDistId) return false;
+      return true;
+    });
+  }, [challenges, filterDistType, filterDistId]);
+
+  // Challenges matching all filters (including difficulty)
+  const filtered = useMemo(() => {
+    return challengesMatchingDist.filter((c) => {
+      if (filterDifficulty === 'all') return true;
+      return c.difficulty.toLowerCase() === filterDifficulty.toLowerCase();
+    });
+  }, [challengesMatchingDist, filterDifficulty]);
+
+  const handleSelectDistType = (type: 'all' | 'continuous' | 'discrete') => {
+    setFilterDistType(type);
+    if (filterDistId !== 'all') {
+      const selected = distOptions.list.find((d) => d.id === filterDistId);
+      if (type !== 'all' && selected && selected.type !== type) {
+        setFilterDistId('all');
+      }
+    }
+  };
+
+  const handleSelectDistId = (id: string) => {
+    if (filterDistId === id) {
+      setFilterDistId('all');
+    } else {
+      setFilterDistId(id);
+      if (id !== 'all') {
+        const item = distOptions.list.find((d) => d.id === id);
+        if (item && filterDistType !== 'all' && filterDistType !== item.type) {
+          setFilterDistType(item.type);
+        }
+      }
+    }
+  };
 
   const getHelperState = (item: StudentChallenge): HelperState => {
     if (helpers[item.id]) return helpers[item.id];
@@ -287,8 +397,172 @@ export const QuestsView: React.FC<QuestsViewProps> = ({
         </button>
       </div>
 
-      {/* Filter Tabs - Clean, without redundant badges */}
-      <div className="flex items-center justify-between">
+      {/* Filtro sobre os Tipos e Distribuições de Probabilidade */}
+      <div
+        className={`rounded-2xl border p-3 sm:p-4 space-y-3 transition-colors shadow-xs ${
+          isDark
+            ? 'bg-[#0a1b33] border-[#183664]'
+            : 'bg-white border-slate-200'
+        }`}
+      >
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <div className="flex items-center gap-2">
+            <Layers className="w-4 h-4 text-[#003882] dark:text-sky-400" />
+            <span className="text-xs font-bold text-slate-800 dark:text-slate-100 uppercase tracking-wider">
+              Tipos de Distribuição de Probabilidade
+            </span>
+          </div>
+          {(filterDistType !== 'all' ||
+            filterDistId !== 'all' ||
+            filterDifficulty !== 'all') && (
+            <button
+              onClick={() => {
+                setFilterDistType('all');
+                setFilterDistId('all');
+                setFilterDifficulty('all');
+              }}
+              className="text-[11px] font-semibold text-[#003882] dark:text-sky-400 hover:underline flex items-center gap-1 cursor-pointer"
+            >
+              <RotateCcw className="w-3 h-3" />
+              Limpar Filtros
+            </button>
+          )}
+        </div>
+
+        {/* Nível 1: Tipos de Distribuição (Todas, Contínuas, Discretas) */}
+        <div
+          className={`flex items-center gap-1 p-1 rounded-xl border text-xs overflow-x-auto no-scrollbar w-fit max-w-full ${
+            isDark
+              ? 'bg-[#0c1f3d] border-[#183664]'
+              : 'bg-slate-100 border-slate-200'
+          }`}
+        >
+          <button
+            onClick={() => handleSelectDistType('all')}
+            className={`py-1.5 px-3 rounded-lg font-semibold transition-colors cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
+              filterDistType === 'all'
+                ? 'bg-[#003882] text-white shadow-sm'
+                : isDark
+                ? 'text-slate-400 hover:text-slate-200'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <span>Todas as Distribuições</span>
+            <span
+              className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
+                filterDistType === 'all'
+                  ? 'bg-white/20 text-white'
+                  : isDark
+                  ? 'bg-slate-800 text-slate-300'
+                  : 'bg-slate-200 text-slate-700'
+              }`}
+            >
+              {distOptions.total}
+            </span>
+          </button>
+          <button
+            onClick={() => handleSelectDistType('continuous')}
+            className={`py-1.5 px-3 rounded-lg font-semibold transition-colors cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
+              filterDistType === 'continuous'
+                ? 'bg-[#003882] text-white shadow-sm'
+                : isDark
+                ? 'text-slate-400 hover:text-slate-200'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <Activity className="w-3.5 h-3.5 text-sky-400" />
+            <span>Contínuas</span>
+            <span
+              className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
+                filterDistType === 'continuous'
+                  ? 'bg-white/20 text-white'
+                  : isDark
+                  ? 'bg-slate-800 text-slate-300'
+                  : 'bg-slate-200 text-slate-700'
+              }`}
+            >
+              {distOptions.continuousTotal}
+            </span>
+          </button>
+          <button
+            onClick={() => handleSelectDistType('discrete')}
+            className={`py-1.5 px-3 rounded-lg font-semibold transition-colors cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
+              filterDistType === 'discrete'
+                ? 'bg-[#003882] text-white shadow-sm'
+                : isDark
+                ? 'text-slate-400 hover:text-slate-200'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <Hash className="w-3.5 h-3.5 text-amber-400" />
+            <span>Discretas</span>
+            <span
+              className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
+                filterDistType === 'discrete'
+                  ? 'bg-white/20 text-white'
+                  : isDark
+                  ? 'bg-slate-800 text-slate-300'
+                  : 'bg-slate-200 text-slate-700'
+              }`}
+            >
+              {distOptions.discreteTotal}
+            </span>
+          </button>
+        </div>
+
+        {/* Nível 2: Chips de Distribuições Específicas do Tipo */}
+        <div className="space-y-1">
+          <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
+            Filtrar por distribuição específica:
+          </div>
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar text-xs">
+            <button
+              onClick={() => handleSelectDistId('all')}
+              className={`py-1 px-2.5 rounded-lg text-xs font-semibold shrink-0 transition-colors cursor-pointer border whitespace-nowrap ${
+                filterDistId === 'all'
+                  ? 'bg-[#003882] text-white border-[#003882] shadow-xs'
+                  : isDark
+                  ? 'bg-[#071326] border-[#183664] text-slate-300 hover:border-slate-500'
+                  : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+              }`}
+            >
+              Todas deste tipo ({visibleDistChips.reduce((acc, d) => acc + d.count, 0)})
+            </button>
+            {visibleDistChips.map((d) => {
+              const isSelected = filterDistId === d.id;
+              return (
+                <button
+                  key={d.id}
+                  onClick={() => handleSelectDistId(d.id)}
+                  className={`py-1 px-2.5 rounded-lg text-xs font-semibold shrink-0 transition-colors cursor-pointer border flex items-center gap-1.5 whitespace-nowrap ${
+                    isSelected
+                      ? 'bg-[#003882] text-white border-[#003882] shadow-xs'
+                      : isDark
+                      ? 'bg-[#071326] border-[#183664] text-slate-300 hover:border-slate-500'
+                      : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+                  }`}
+                >
+                  <span>{d.name}</span>
+                  <span
+                    className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
+                      isSelected
+                        ? 'bg-white/20 text-white'
+                        : isDark
+                        ? 'bg-slate-800 text-slate-400'
+                        : 'bg-slate-200 text-slate-600'
+                    }`}
+                  >
+                    {d.count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* Filter Tabs - Dificuldade (Todos, Iniciante, Intermediário, Avançado) */}
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <div
           className={`flex items-center gap-1 p-1 rounded-xl border text-xs ${
             isDark
@@ -306,7 +580,7 @@ export const QuestsView: React.FC<QuestsViewProps> = ({
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            Todos ({challenges.length})
+            Todos ({challengesMatchingDist.length})
           </button>
           <button
             onClick={() => setFilterDifficulty('iniciante')}
@@ -351,7 +625,8 @@ export const QuestsView: React.FC<QuestsViewProps> = ({
             isDark ? 'text-slate-400' : 'text-slate-500'
           }`}
         >
-          {filtered.length} desafios disponíveis
+          {filtered.length}{' '}
+          {filtered.length === 1 ? 'desafio disponível' : 'desafios disponíveis'}
         </div>
       </div>
 
@@ -872,6 +1147,39 @@ export const QuestsView: React.FC<QuestsViewProps> = ({
             </div>
           );
         })}
+
+        {filtered.length === 0 && (
+          <div
+            className={`rounded-2xl border p-8 text-center space-y-3.5 transition-colors ${
+              isDark
+                ? 'bg-[#0a1b33] border-[#183664]'
+                : 'bg-white border-slate-200'
+            }`}
+          >
+            <div className="w-12 h-12 rounded-full mx-auto flex items-center justify-center bg-blue-100 dark:bg-[#0c1f3d] text-[#003882] dark:text-sky-400">
+              <Filter className="w-6 h-6" />
+            </div>
+            <div className="space-y-1">
+              <h4 className="text-sm font-bold text-slate-800 dark:text-slate-100">
+                Nenhum desafio encontrado para este filtro
+              </h4>
+              <p className="text-xs text-slate-500 dark:text-slate-400 max-w-md mx-auto">
+                Não há questões disponíveis para os filtros combinados de tipo de distribuição e nível de dificuldade selecionados.
+              </p>
+            </div>
+            <button
+              onClick={() => {
+                setFilterDistType('all');
+                setFilterDistId('all');
+                setFilterDifficulty('all');
+              }}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-xl bg-[#003882] text-white hover:bg-[#0c4ca3] transition-colors cursor-pointer shadow-sm"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              Restaurar Todos os Desafios
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

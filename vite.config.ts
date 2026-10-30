@@ -14,8 +14,8 @@ export default defineConfig(() => {
         includeAssets: ['apple-touch-icon.png', 'icon.svg', 'pwa-192x192.png', 'pwa-512x512.png'],
         manifest: {
           id: '/',
-          name: 'ProbMaster: Distribuições & Gamificação',
-          short_name: 'ProbMaster',
+          name: 'ProbMaster PI: Distribuições & Gamificação',
+          short_name: 'ProbMaster PI',
           description: 'Cálculo interativo de distribuições de probabilidade com gamificação e relatórios acadêmicos.',
           theme_color: '#0f172a',
           background_color: '#0f172a',
@@ -42,6 +42,9 @@ export default defineConfig(() => {
               purpose: 'maskable',
             },
           ],
+        },
+        workbox: {
+          maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
         },
         devOptions: {
           enabled: true,
